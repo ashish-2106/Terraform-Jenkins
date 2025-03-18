@@ -1,5 +1,4 @@
 pipeline {
-
     parameters {
         booleanParam(name: 'autoApprove', defaultValue: false, description: 'Automatically run apply after generating plan?')
     } 
@@ -8,47 +7,82 @@ pipeline {
         AWS_SECRET_ACCESS_KEY = credentials('AWS_SECRET_ACCESS_KEY')
     }
 
-   agent  any
+    agent any
+
     stages {
-        stage('checkout') {
+        stage('Checkout') {
             steps {
-                 script{
-                        dir("terraform")
-                        {
-                            git "https://github.com/ashish-2106/Terraform-Jenkins.git"
-                        }
+                script {
+                    deleteDir()
+                    retry(3) {
+                        checkout([$class: 'GitSCM',
+                            branches: [[name: '*/main']],
+                            userRemoteConfigs: [[
+                                url: 'https://github.com/Naval4206/Terraform-Jenkins.git',
+                                credentialsId: 'your-credential-id'
+                            ]],
+                            extensions: [[$class: 'CloneOption', timeout: 30, noTags: false]]
+                        ])
                     }
                 }
             }
+        }
 
-        stage('Plan') {
+        stage('Verify Files') {
             steps {
-                sh 'pwd;cd terraform/ ; terraform init'
-                sh "pwd;cd terraform/ ; terraform plan -out tfplan"
-                sh 'pwd;cd terraform/ ; terraform show -no-color tfplan > tfplan.txt'
+                sh '''
+                echo "Checking repository structure..."
+                pwd
+                ls -la
+                '''
             }
         }
+
+        stage('Terraform Init') {
+            steps {
+                sh '''
+                terraform init
+                '''
+            }
+        }
+
+        stage('Terraform Plan') {
+            steps {
+                sh '''
+                terraform plan -out=tfplan
+                terraform show -no-color tfplan > tfplan.txt
+                '''
+            }
+        }
+
         stage('Approval') {
            when {
-               not {
-                   equals expected: true, actual: params.autoApprove
-               }
+               not { equals expected: true, actual: params.autoApprove }
            }
-
            steps {
                script {
-                    def plan = readFile 'terraform/tfplan.txt'
+                    def plan = readFile 'tfplan.txt'
                     input message: "Do you want to apply the plan?",
                     parameters: [text(name: 'Plan', description: 'Please review the plan', defaultValue: plan)]
                }
            }
        }
 
-        stage('Apply') {
+        stage('Terraform Apply') {
             steps {
-                sh "pwd;cd terraform/ ; terraform apply -input=false tfplan"
+                sh '''
+                terraform apply -auto-approve tfplan
+                '''
             }
         }
     }
 
-  }
+    post {
+        success {
+            echo "Terraform execution completed successfully!"
+        }
+        failure {
+            echo "Terraform execution failed!"
+        }
+    }
+}
