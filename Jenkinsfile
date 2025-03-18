@@ -9,17 +9,24 @@ pipeline {
     }
 
    agent  any
-    stages {
-        stage('checkout') {
-            steps {
-                 script{
-                        dir("terraform")
-                        {
-                            git "https://github.com/ashish-2106/Terraform-Jenkins.git"
-                        }
-                    }
-                }
+    stage('Checkout') {
+    steps {
+        script {
+            deleteDir()
+            retry(3) {
+                checkout([$class: 'GitSCM',
+                    branches: [[name: '*/main']],
+                    userRemoteConfigs: [[
+                        url: 'https://github.com/ashish-2106/Terraform-Jenkins.git',
+                        credentialsId: 'GitHub-Access-Key' // Ensure this matches the stored Jenkins credentials
+                    ]],
+                    extensions: [[$class: 'CloneOption', timeout: 60]]
+                ])
             }
+        }
+    }
+}
+
 
         stage('Plan') {
             steps {
