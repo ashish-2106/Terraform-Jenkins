@@ -18,7 +18,7 @@ pipeline {
                         checkout([$class: 'GitSCM',
                             branches: [[name: '*/main']],
                             userRemoteConfigs: [[
-                                url: 'https://github.com/Naval4206/Terraform-Jenkins.git',
+                                url: 'https://github.com/ashish-2106/Terraform-Jenkins.git',
                                 credentialsId: 'your-credential-id'
                             ]],
                             extensions: [[$class: 'CloneOption', timeout: 30, noTags: false]]
